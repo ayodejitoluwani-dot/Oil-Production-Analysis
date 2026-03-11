@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Oil Production Forecasting — Seplat Energy</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #F0F4F8; color: #1A1A1A; }
+
+  .header {
+    background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
+    color: white; padding: 28px 40px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header p  { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+  .badge { background: #F4A21E; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; padding: 24px 40px 8px; }
+  .kpi { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); text-align: center; border-top: 4px solid #2E75B6; }
+  .kpi.red   { border-top-color: #C0392B; }
+  .kpi.green { border-top-color: #27AE60; }
+  .kpi.gold  { border-top-color: #F4A21E; }
+  .kpi-val   { font-size: 26px; font-weight: 800; color: #1F4E79; margin-bottom: 4px; }
+  .kpi.red   .kpi-val { color: #C0392B; }
+  .kpi.green .kpi-val { color: #27AE60; }
+  .kpi.gold  .kpi-val { color: #E67E22; }
+  .kpi-label { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .charts-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 16px 40px; }
+  .charts-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 0 40px 16px; }
+  .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .card h3 { font-size: 13px; color: #1F4E79; font-weight: 700; text-transform: uppercase;
+             letter-spacing: 0.5px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #EBF3FB; }
+  .chart-wrap    { position: relative; height: 220px; }
+  .chart-wrap-lg { position: relative; height: 260px; }
+
+  .model-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .model-table th { background: #1F4E79; color: white; padding: 10px 14px; text-align: left; }
+  .model-table td { padding: 10px 14px; border-bottom: 1px solid #EEE; }
+  .model-table tr:nth-child(even) td { background: #F7FAFD; }
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  .tag.green { background: #E8F8EE; color: #27AE60; }
+  .tag.blue  { background: #EBF3FB; color: #2E75B6; }
+  .tag.gold  { background: #FEF9E7; color: #E67E22; }
+
+  .insight { background: #EBF3FB; border-left: 4px solid #2E75B6; padding: 12px 16px;
+             border-radius: 0 8px 8px 0; margin: 8px 0; font-size: 13px; }
+  .insight strong { color: #1F4E79; }
+
+  .downtime-bar { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .downtime-fill { height: 24px; border-radius: 4px; display: flex; align-items: center;
+                   padding: 0 10px; color: white; font-size: 11px; font-weight: 700; min-width: 60px; }
+
+  .footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Oil Production Forecasting — Seplat Energy Case Study</h1>
+    <p>ML analysis across 20 wells · 4 fields · 1,000 monthly records (2018–2023) · March 2026</p>
+  </div>
+  <div class="badge">Prepared by Ayodeji Toluwani · NCAIR</div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-val">20</div>
+    <div class="kpi-label">Wells Analysed</div>
+  </div>
+  <div class="kpi gold">
+    <div class="kpi-val">724 bopd</div>
+    <div class="kpi-label">Avg Production</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-val">0.946</div>
+    <div class="kpi-label">Model R² Score</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-val">±73 bopd</div>
+    <div class="kpi-label">Forecast Error (MAE)</div>
+  </div>
+  <div class="kpi red">
+    <div class="kpi-val">$61.5K</div>
+    <div class="kpi-label">Cost per 24h Downtime</div>
+  </div>
+</div>
+
+<!-- Row 1 -->
+<div class="charts-grid">
+  <div class="card">
+    <h3>Average Production by Field (bopd)</h3>
+    <div class="chart-wrap"><canvas id="fieldChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Production Trend by Year</h3>
+    <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 2 -->
+<div class="charts-grid">
+  <div class="card">
+    <h3>Reservoir Pressure vs Production</h3>
+    <div class="chart-wrap-lg"><canvas id="pressureChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Well Age vs Average Production Decline</h3>
+    <div class="chart-wrap-lg"><canvas id="ageChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 3 -->
+<div class="charts-grid-3">
+  <div class="card">
+    <h3>Model Performance Comparison</h3>
+    <div class="chart-wrap"><canvas id="modelChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Top Production Drivers</h3>
+    <div class="chart-wrap"><canvas id="driversChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Revenue Loss by Monthly Downtime</h3>
+    <div style="padding-top:8px">
+      <div style="font-size:12px;color:#777;margin-bottom:12px">Per well · @$85/bbl · Avg 724 bopd</div>
+      <div class="downtime-bar">
+        <div style="width:55px;font-size:12px;color:#555">24 hrs</div>
+        <div class="downtime-fill" style="width:80px;background:#27AE60">$61.5K</div>
+      </div>
+      <div class="downtime-bar">
+        <div style="width:55px;font-size:12px;color:#555">48 hrs</div>
+        <div class="downtime-fill" style="width:120px;background:#F4A21E">$123K</div>
+      </div>
+      <div class="downtime-bar">
+        <div style="width:55px;font-size:12px;color:#555">72 hrs</div>
+        <div class="downtime-fill" style="width:160px;background:#E67E22">$184.5K</div>
+      </div>
+      <div class="downtime-bar">
+        <div style="width:55px;font-size:12px;color:#555">1 week</div>
+        <div class="downtime-fill" style="width:200px;background:#C0392B">$430.6K</div>
+      </div>
+      <div style="margin-top:14px;padding:12px;background:#FEF0F0;border-radius:8px;font-size:12px;color:#C0392B;font-weight:600">
+        ⚠️ Downtime is operationally controllable — unlike reservoir decline
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Model table -->
+<div style="padding: 0 40px 16px;">
+  <div class="card">
+    <h3>Model Performance Summary</h3>
+    <table class="model-table">
+      <thead>
+        <tr><th>Model</th><th>R² Score</th><th>MAE (bopd)</th><th>RMSE (bopd)</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr style="background:#F0FFF4">
+          <td><strong>Gradient Boosting ✓</strong></td>
+          <td><strong style="color:#27AE60">0.946</strong></td>
+          <td><strong>73.5</strong></td>
+          <td>94.3</td>
+          <td><span class="tag green">Recommended</span></td>
+        </tr>
+        <tr>
+          <td>Random Forest</td>
+          <td>0.939</td>
+          <td>77.3</td>
+          <td>100.5</td>
+          <td><span class="tag blue">Strong</span></td>
+        </tr>
+        <tr>
+          <td>Linear Regression</td>
+          <td>0.897</td>
+          <td>100.9</td>
+          <td>130.2</td>
+          <td><span class="tag gold">Baseline</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">Ayodeji Toluwani · AI/Data Intern, NCAIR · ayodejitoluwani@gmail.com · March 2026</div>
+
+<script>
+const BLUE='#1F4E79', LIGHT='#2E75B6', GREEN='#27AE60', RED='#C0392B', GOLD='#F4A21E', ORANGE='#E67E22';
+
+// Field production
+new Chart(document.getElementById('fieldChart'), { type:'bar',
+  data:{ labels:['Sapele','Oben','Eleme','Otiaseki'],
+    datasets:[{ data:[812, 754, 698, 633],
+      backgroundColor:[BLUE, LIGHT, GOLD, ORANGE],
+      borderRadius:6, borderColor:'white', borderWidth:2 }]},
+  options:{ plugins:{legend:{display:false}},
+    scales:{y:{title:{display:true,text:'Avg Production (bopd)'},min:500}}}
+});
+
+// Trend
+new Chart(document.getElementById('trendChart'), { type:'line',
+  data:{ labels:['2018','2019','2020','2021','2022','2023'],
+    datasets:[{ label:'Avg Production (bopd)',
+      data:[798, 774, 742, 718, 694, 671],
+      borderColor:BLUE, backgroundColor:'rgba(31,78,121,0.1)',
+      fill:true, tension:0.4, pointRadius:5, pointBackgroundColor:BLUE }]},
+  options:{ plugins:{legend:{display:false}},
+    scales:{y:{title:{display:true,text:'bopd'}}}}
+});
+
+// Pressure scatter (simulated)
+const pressures = Array.from({length:60}, (_,i) => 1200 + i*55 + Math.random()*100);
+const productions = pressures.map(p => Math.max(50, p*0.48 - 200 + Math.random()*120));
+new Chart(document.getElementById('pressureChart'), { type:'scatter',
+  data:{ datasets:[{ label:'Wells', data: pressures.map((p,i)=>({x:p,y:productions[i]})),
+    backgroundColor:'rgba(31,78,121,0.4)', pointRadius:5 }]},
+  options:{ plugins:{legend:{display:false}},
+    scales:{
+      x:{title:{display:true,text:'Reservoir Pressure (psi)'}},
+      y:{title:{display:true,text:'Production (bopd)'}}
+    }}
+});
+
+// Age decline
+new Chart(document.getElementById('ageChart'), { type:'line',
+  data:{ labels:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+    datasets:[{ label:'Avg Production (bopd)',
+      data:[1420,1340,1250,1150,1040,940,840,730,640,560,490,430,380,340,310],
+      borderColor:GREEN, backgroundColor:'rgba(39,174,96,0.1)',
+      fill:true, tension:0.4, pointRadius:4 }]},
+  options:{ plugins:{legend:{display:false}},
+    scales:{
+      x:{title:{display:true,text:'Well Age (Years)'}},
+      y:{title:{display:true,text:'Avg Production (bopd)'}}
+    }}
+});
+
+// Model comparison
+new Chart(document.getElementById('modelChart'), { type:'bar',
+  data:{ labels:['R² Score','MAE (normalized)'],
+    datasets:[
+      { label:'Gradient Boosting', data:[0.946, 0.93], backgroundColor:GREEN, borderRadius:4 },
+      { label:'Random Forest',     data:[0.939, 0.90], backgroundColor:LIGHT, borderRadius:4 },
+      { label:'Linear Regression', data:[0.897, 0.79], backgroundColor:GOLD,  borderRadius:4 },
+    ]},
+  options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:12}}},
+    scales:{y:{min:0.7, max:1.0, ticks:{callback:v=>v.toFixed(2)}}}}
+});
+
+// Feature importance
+new Chart(document.getElementById('driversChart'), { type:'bar',
+  data:{ labels:['Water Cut','Reservoir Pressure','Well Age','Downtime','Choke Size','GOR','Rainfall','Pipeline Util.'],
+    datasets:[{ data:[0.31, 0.27, 0.18, 0.10, 0.07, 0.04, 0.02, 0.01],
+      backgroundColor:[RED, BLUE, ORANGE, GOLD, LIGHT, LIGHT, GOLD, GOLD],
+      borderRadius:4, borderColor:'white', borderWidth:1.5 }]},
+  options:{ indexAxis:'y', plugins:{legend:{display:false}},
+    scales:{x:{title:{display:true,text:'Importance Score'}}}}
+});
+</script>
+</body>
+</html>
